@@ -1,105 +1,459 @@
-/*import * as NATS from 'nats';
+import { expect } from 'chai';
+import 'mocha';
+import * as NATS from 'nats';
 import * as Hemera from 'nats-hemera';
-import * as HemeraJoi from 'hemera-joi'
-import {PgDb} from 'pogi';
-import {UserPersistence} from "./persistence/user.persistence";
-import {UserService} from "./service/user.service";
-import {UserServiceImpl} from "./service/user.service.impl";
-import {UserPersistenceImpl} from "./persistence/user.persistence.impl";
-import {User} from './model/user'
-import {Client} from "nats";
-import {logger, pogiLogger} from "./logger";
+import {RequestGenerator} from "./test/request.generator";
 
-const nats: Client = NATS.connect({
+const natsOpts = {
   url: process.env.NATS_URL,
   user: process.env.NATS_USER,
   pass: process.env.NATS_PW,
-});
-const hemera: Hemera = new Hemera(nats, {
-  logLevel: 'info',
-  childLogger: true,
-  tag: 'hemera-user',
-  logger,
-});
+};
+let requestGenerator: RequestGenerator;
+let hemera;
 
-let persistence: UserPersistence;
+describe('App', () => {
 
-(async()=> {
-  const pgdb: PgDb = await PgDb.connect({
-    connectionString: process.env.PG_URL,
-    logger: pogiLogger,
-  });
-  persistence = new UserPersistenceImpl(pgdb);
-
-  hemera.use(HemeraJoi);
-
-  await hemera.ready();
-
-  const Joi = hemera['joi'];
-
-  hemera.add({
-    topic: 'user',
-    cmd: 'GET',
-    id: Joi.number().required(),
-  }, async function(req) {
-    let service: UserService = new UserServiceImpl(persistence, this.meta$);
-    return await service.get(req.id);
+  beforeEach(async () => {
+    requestGenerator = new RequestGenerator('app-test');
+    hemera = new Hemera(NATS.connect(natsOpts), {});
+    return await hemera.ready();
   });
 
-  hemera.add({
-    topic: 'user',
-    cmd: 'CREATE'
-  }, async function(req) {
-    let meta = this.meta$;
-    let service: UserService = new UserServiceImpl(persistence, meta);
-    let user: User = await service.create();
-    hemera.act({
-      pubsub$: true,
-      topic: 'user',
-      cmd: 'CREATED',
-      user: user,
-      meta$: meta,
+  describe('CREATE', () => {
+    /* it('Should reject if meta$ is not set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'CREATE',
+        requestId$: requestGenerator.id,
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });*/
+    /*it('Should reject if user.roles is not set in meta$', (done) => {
+      hemera.act({
+        topic: 'account',
+        cmd: 'CREATE',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1},
+        },
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
     });
-    return user;
+    it('Should reject if role USER is missing', (done) => {
+      hemera.act({
+          topic: 'account',
+          cmd: 'CREATE',
+          meta$: {
+            id: requestGenerator.id,
+            user: {id: 1, roles: ['FOO', 'BAR']},
+          },
+        }, (err, resp) => {
+          expect(err).to.be.not.null;
+          expect(err.message === 'missing permission').to.be.true;
+          expect(resp).to.be.undefined;
+          hemera.close(done);
+        }
+      )
+    });*/
+    /*it('Should return a new account if role USER is set', (done) => {
+      hemera.act({
+        topic: 'account',
+        cmd: 'CREATE',
+        meta$: requestGenerator.getValid(),
+      }, (err, resp) => {
+        expect(err).to.be.null;
+        expect(resp).to.be.not.undefined;
+        expect(resp.data.owner).to.be.equal(1);
+        hemera.close(done);
+      });
+    });*/
   });
 
-  hemera.add({
-    topic: 'user',
-    cmd: 'DELETE',
-    id: Joi.number().required(),
-  }, async function(req) {
-    let meta = this.meta$;
-    let service: UserService = new UserServiceImpl(persistence, meta);
-    return await service.delete(req.id);
+  describe('GET.user', () => {
+    it('Should reject if meta$ is not set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET',
+        id: 1,
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if user.roles is not set in meta$.user', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET',
+        id: 1,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if role USER is missing', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET',
+        id: 1,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1, roles: ['FOO', 'BAR']},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should return a user if role USER is set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET',
+        id: 1,
+        meta$: requestGenerator.getValid(),
+      }, (err, resp) => {
+        expect(err).to.be.null;
+        expect(resp).to.be.not.undefined;
+        expect(resp.data.id).to.be.equal(1);
+        hemera.close(done);
+      });
+    });
   });
 
-  hemera.add({
-    topic: 'user',
-    cmd: 'GET.all',
-  }, async function(req) {
-    let service: UserService = new UserServiceImpl(persistence, this.meta$);
-    return await service.getAll();
+  describe('GET.all', () => {
+    it('Should reject if meta$ is not set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET.all',
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if user.roles is not set in meta$.user', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET.all',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if role USER is missing', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET.all',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1, roles: ['FOO', 'BAR']},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should accept if role USER is set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'GET.all',
+        meta$: requestGenerator.getValid(),
+      }, (err, resp) => {
+        let owner = new Set(resp.map(acc => acc.data.owner));
+        expect(err).to.be.null;
+        expect(resp).to.be.not.undefined;
+        expect(owner.size).to.be.equal(1);
+        hemera.close(done);
+      });
+    });
   });
 
-  hemera.add({
-    topic: 'user',
-    cmd: 'SET.name',
-    id: Joi.number().required(),
-    value: Joi.string().required(),
-  }, async function(req) {
-    let service: UserService = new UserServiceImpl(persistence, this.meta$);
-    return await service.setName(req.id, req.value);
+  describe('SET.email', () => {
+    it('Should reject if meta$ is not set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.email',
+        id: 1,
+        email: 'foo@bar.com',
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if user.roles is not set in meta$.user', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.email',
+        id: 1,
+        email: 'foo@bar.com',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1}
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if role USER is missing', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.email',
+        id: 1,
+        email: 'foo@bar.com',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1, roles: ['FOO', 'BAR']},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should accept if role USER is set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.email',
+        id: 1,
+        email: 'foo@bar.com',
+        meta$: requestGenerator.getValid(),
+      }, (err, resp) => {
+        expect(err).to.be.null;
+        expect(resp).to.be.not.undefined;
+        expect(resp.data.id).to.be.equal(1);
+        hemera.close(done);
+      });
+    });
   });
 
-  hemera.add({
-    topic: 'user',
-    cmd: 'SET.email',
-    id: Joi.number().required(),
-    value: Joi.string().required(),
-  }, async function(req) {
-    let service: UserService = new UserServiceImpl(persistence, this.meta$);
-    return await service.changeEmail(req.id, req.value);
+  describe('SET.username', () => {
+    it('Should reject if meta$ is not set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.username',
+        id: 1,
+        username: 'foo',
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if user.roles is not set in meta$.user', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.username',
+        id: 1,
+        username: 'foo',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if role USER is missing', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.username',
+        id: 1,
+        username: 'foo',
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1, roles: ['FOO', 'BAR']},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should accept if role USER is set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'SET.username',
+        id: 1,
+        username: 'foo',
+        meta$: requestGenerator.getValid(),
+      }, (err, resp) => {
+        expect(err).to.be.null;
+        expect(resp).to.be.not.undefined;
+        expect(resp.data.id).to.be.equal(1);
+        hemera.close(done);
+      });
+    });
   });
 
-})().catch(logger.error);
-*/
+  describe('DELETE', () => {
+    it('Should reject if meta$ is not set', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'DELETE',
+        id: 1,
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if user.roles is not set in meta$.user', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'DELETE',
+        id: 1,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should reject if role USER is missing', (done) => {
+      hemera.act({
+        topic: 'user',
+        cmd: 'DELETE',
+        id: 1,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 1, roles: ['FOO', 'BAR']},
+        }
+      }, (err, resp) => {
+        expect(err).to.be.not.null;
+        expect(err.message === 'missing permission').to.be.true;
+        expect(resp).to.be.undefined;
+        hemera.close(done);
+      });
+    });
+    it('Should accept if role USER is set', (done) => {
+      const email = `test-${Date.now()}@test.com`;
+      const username = `test-${Date.now()}`;
+      hemera.act({
+        topic: 'user',
+        cmd: 'CREATE',
+        email: email,
+        username: username,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 22, roles: ['USER']},
+        },
+      }, (err, resp) => {
+        let id = resp.data.id;
+        hemera.act({
+          topic: 'user',
+          cmd: 'DELETE',
+          id: id,
+          meta$: {
+            id: requestGenerator.id,
+            user: {id: id, roles: ['USER']},
+          }
+        }, (err, resp) => {
+          expect(err).to.be.null;
+          expect(resp).to.be.not.undefined;
+          expect(resp).to.be.true;
+          hemera.close(done);
+        });
+      });
+    });
+    it('Should reject if different user', (done) => {
+      const email = `test-${Date.now()}@test.com`;
+      const username = `test-${Date.now()}`;
+      hemera.act({
+        topic: 'user',
+        cmd: 'CREATE',
+        email: email,
+        username: username,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 22, roles: ['USER']},
+        },
+      }, (err, resp) => {
+        let id = resp.data.id;
+        hemera.act({
+          topic: 'user',
+          cmd: 'DELETE',
+          id: id,
+          meta$: requestGenerator.getValid(),
+        }, (err, resp) => {
+          expect(err).to.be.not.null;
+          expect(err.message === 'missing permission').to.be.true;
+          expect(resp).to.be.undefined;
+          hemera.close(done);
+        });
+      });
+    });
+    it('Should accept if different user has role ADMIN', (done) => {
+      const email = `test-${Date.now()}@test.com`;
+      const username = `test-${Date.now()}`;
+      hemera.act({
+        topic: 'user',
+        cmd: 'CREATE',
+        email: email,
+        username: username,
+        meta$: {
+          id: requestGenerator.id,
+          user: {id: 22, roles: ['USER']},
+        },
+      }, (err, resp) => {
+        let id = resp.data.id;
+        hemera.act({
+          topic: 'user',
+          cmd: 'DELETE',
+          id: id,
+          meta$: {
+            id: requestGenerator.id,
+            user: {id: 23, roles: ['USER', 'ADMIN']},
+          },
+        }, (err, resp) => {
+          expect(err).to.be.null;
+          expect(resp).to.be.not.undefined;
+          expect(resp).to.be.true;
+          hemera.close(done);
+        });
+      });
+    });
+  });
+});
