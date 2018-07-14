@@ -215,4 +215,41 @@ describe('UserPersistence', () => {
       return await true;
     });
   });
+
+  describe('When emailAvailable call', () => {
+    it('Should return true if email not in db', async () => {
+      let uuid = Date.now();
+      let email = `test${uuid}@test.com`;
+      let result = await persistence.emailAvailable(email);
+      expect(result).to.be.true;
+      return await true;
+    });
+    it('Should return false if email is in db', async () => {
+      let uuid = Date.now();
+      let email = `test${uuid}@test.com`;
+      await persistence.create(email, null);
+      let result = await persistence.emailAvailable(email.toUpperCase());
+      expect(result).to.be.false;
+      return await true;
+    });
+  });
+
+  describe('When usernameAvailable call', () => {
+    it('Should return true if username not in db', async () => {
+      let uuid = Date.now();
+      let username = `test${uuid}`;
+      let result = await persistence.usernameAvailable(username);
+      expect(result).to.be.true;
+      return await true;
+    });
+    it('Should return false if username is in db', async () => {
+      let uuid = Date.now();
+      let email = `test${uuid}@test.com`;
+      let username = `test${uuid}`;
+      await persistence.create(email, username);
+      let result = await persistence.usernameAvailable(username.toUpperCase());
+      expect(result).to.be.false;
+      return await true;
+    });
+  });
 });

@@ -39,10 +39,13 @@ export class UserPersistenceImpl implements UserPersistence {
   }
 
   /**
-   * create a new user or reject
-   * expect unused email
-   * expect unused name
+   * create a new user
+   * except email to be not null
+   * except email to be valid
+   * except username to be null or non empty
    * @implements UserPersistence
+   * @param {string} email
+   * @param {string} username
    * @returns {Promise<User>}
    */
   async create(email: string, username: string): Promise<User> {
@@ -85,12 +88,41 @@ export class UserPersistenceImpl implements UserPersistence {
     });
   }
 
+  /**
+   * retrieve all accounts
+   * @implements UserPersistence
+   * @returns {Promise<Array<User>>}
+   */
   async getAll(): Promise<Array<User>> {
     return await this.db.query(
       `SELECT ${MEMBERS} FROM ${TABLE}`
     ).then((results: Array<UserData>) => {
       return results.map(data => new UserImpl(data));
     });
+  }
+
+  /**
+   * check if the email is already in the database
+   * @implements UserPersistence
+   * @param {string} email
+   * @returns {Promise<boolean>}
+   */
+  async emailAvailable (email: string): Promise<boolean> {
+    return await this.db.queryOneField(
+      `SELECT count(id) = 0 FROM ${TABLE} WHERE email = :email`, {email}
+    );
+  }
+
+  /**
+   * check if the username is already in the database
+   * @implements UserPersistence
+   * @param {string} username
+   * @returns {Promise<boolean>}
+   */
+  async usernameAvailable (username: string): Promise<boolean> {
+    return await this.db.queryOneField(
+      `SELECT count(id) = 0 FROM ${TABLE} WHERE username = :username`, {username}
+    );
   }
 
 }

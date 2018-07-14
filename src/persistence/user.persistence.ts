@@ -43,4 +43,18 @@ export interface UserPersistence {
    */
   remove(user: User): Promise<number>;
 
+  /**
+   * check if the username is already in the database
+   * @param {string} username
+   * @returns {Promise<boolean>}
+   */
+  usernameAvailable(username: string): Promise<boolean>;
+
+  /**
+   * check if the email is already in the database
+   * @param {string} email
+   * @returns {Promise<boolean>}
+   */
+  emailAvailable(email: string): Promise<boolean>;
+
 }

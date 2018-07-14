@@ -2,5 +2,7 @@
   "MISSING_PERMISSION": "missing permission",
   "INVALID_USER": "invalid user",
   "INVALID_EMAIL": "invalid email",
-  "INVALID_USERNAME": "invalid username"
+  "INVALID_USERNAME": "invalid username",
+  "UNAVAILABLE_EMAIL": "email unavailable",
+  "UNAVAILABLE_USERNAME": "username unavailable"
 }

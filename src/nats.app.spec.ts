@@ -21,6 +21,7 @@ describe('App', () => {
   });
 
   describe('CREATE', () => {
+    // TODO: write tests!
     /* it('Should reject if meta$ is not set', (done) => {
       hemera.act({
         topic: 'user',

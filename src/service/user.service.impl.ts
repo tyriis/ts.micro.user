@@ -25,7 +25,10 @@ export class UserServiceImpl implements UserService {
    */
   async create (email: string, username: string): Promise<User> {
     logger.debug(`[user.service.create] > ${JSON.stringify(this.req)}`);
-    this.checkEmail(email);
+    await this.checkEmail(email);
+    if (username) {
+      await this.checkUserName(username);
+    }
     return await this.persistence.create(email, username);
   }
 
@@ -39,7 +42,7 @@ export class UserServiceImpl implements UserService {
    */
   async changeEmail (id: number, email: string): Promise<User> {
     logger.debug(`[user.service.change.email] {"id": ${id}} > ${JSON.stringify(this.req)}`);
-    this.checkEmail(email);
+    await this.checkEmail(email);
     let user: User = await this.retrieve(id);
     user.email = email;
     return await this.persistence.update(user);
@@ -55,7 +58,7 @@ export class UserServiceImpl implements UserService {
    */
   async changeUserName (id: number, username: string): Promise<User> {
     logger.debug(`[user.service.change.username] {"id": ${id}} > ${JSON.stringify(this.req)}`);
-    this.checkUserName(username, true);
+    await this.checkUserName(username, true);
     let user: User = await this.retrieve(id);
     user.username = username;
     return await this.persistence.update(user);
@@ -151,14 +154,18 @@ export class UserServiceImpl implements UserService {
    * @param {string} email
    * @throws Error
    */
-  private checkEmail(email:string): void {
+  private async checkEmail(email:string): Promise<void> {
     // @link https://stackoverflow.com/a/1373724 for regex explanation
     const re = /[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/;
     if (!re.test(String(email).toLowerCase())) {
       logger.error(`[${ERRORS.INVALID_EMAIL}] > ${JSON.stringify(this.req)}`);
       throw new Error(ERRORS.INVALID_EMAIL);
     }
-    // TODO: check if email is not already in use
+    let available = await this.persistence.emailAvailable(email);
+    if (!available) {
+      logger.error(`[${ERRORS.UNAVAILABLE_EMAIL}] > ${JSON.stringify(this.req)}`);
+      throw new Error(ERRORS.UNAVAILABLE_EMAIL);
+    }
   }
 
   /**
@@ -167,14 +174,18 @@ export class UserServiceImpl implements UserService {
    * @param {boolean} notNull
    * @throws Error
    */
-  private checkUserName(username: string, notNull?: boolean): void {
+  private async checkUserName(username: string, notNull?: boolean): Promise<void> {
     // @link https://stackoverflow.com/a/12019115 for regex explanation
     const re = /^(?=.{3,20}$)(?![_.])(?!.*[_.]{2})[a-zA-Z0-9._]+(?<![_.])$/;
     if ((notNull && username === null ) || !re.test(String(username))) {
         logger.error(`[${ERRORS.INVALID_USERNAME}] > ${JSON.stringify(this.req)}`);
         throw new Error(ERRORS.INVALID_USERNAME);
     }
-    // TODO: check if username is not already in use
+    let available = await this.persistence.usernameAvailable(username);
+    if (!available) {
+      logger.error(`[${ERRORS.UNAVAILABLE_USERNAME}] > ${JSON.stringify(this.req)}`);
+      throw new Error(ERRORS.UNAVAILABLE_USERNAME);
+    }
   }
 
 }
