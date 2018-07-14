@@ -26,8 +26,8 @@ describe('User', () => {
     });
     it('Should allow to set name', () => {
       const user: User = new UserImpl({email});
-      expect(() => user.name = 'test').to.not.throw();
-      expect(user.name).to.be.equal('test');
+      expect(() => user.username = 'test').to.not.throw();
+      expect(user.username).to.be.equal('test');
     });
     it('Should allow to set email', () => {
       const user: User = new UserImpl({email});

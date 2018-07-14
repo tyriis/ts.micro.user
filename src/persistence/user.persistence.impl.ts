@@ -2,11 +2,11 @@ import {PgDb} from "pogi";
 import {User} from "../model/user";
 import {UserData} from "../model/user.data";
 import {UserPersistence} from "./user.persistence";
-// import {logger} from "../logger";
 import * as fs from "fs";
 import {UserImpl} from "../model/user.impl";
 
 const TABLE = 'users';
+const MEMBERS = 'id, email, username, created, modified';
 
 export class UserPersistenceImpl implements UserPersistence {
 
@@ -30,7 +30,7 @@ export class UserPersistenceImpl implements UserPersistence {
    */
   async get(id: number): Promise<User> {
     return await this.db.queryFirst(
-      `SELECT id, owner, balance, datetime, negative FROM ${TABLE} WHERE id = :id`,
+      `SELECT ${MEMBERS} FROM ${TABLE} WHERE id = :id`,
       { id },
     ).then((data:UserData) => {
       if (!data) throw Error('user does not exist');
@@ -45,10 +45,10 @@ export class UserPersistenceImpl implements UserPersistence {
    * @implements UserPersistence
    * @returns {Promise<User>}
    */
-  async create(email: string, name: string): Promise<User> {
+  async create(email: string, username: string): Promise<User> {
     return await this.db.queryFirst(
-      'INSERT INTO users (email, username) VALUES (:email, :name) RETURNING id, email, username, created, modified',
-      { email, name },
+      `INSERT INTO ${TABLE} (email, username) VALUES (:email, :username) RETURNING ${MEMBERS}`,
+      { email, username },
     ).then((data:UserData) => new UserImpl(data));
   }
 
@@ -61,7 +61,7 @@ export class UserPersistenceImpl implements UserPersistence {
    */
   async update(user: User): Promise<User> {
     return await this.db.queryFirst(
-      'UPDATE user SET email = :email, name = :name WHERE id = :id RETURNING id, email, name, datetime, updated',
+      `UPDATE ${TABLE} SET email = :email, username = :username WHERE id = :id RETURNING ${MEMBERS}`,
       user
     ).then((data:UserData) => {
       if (!data) throw Error('user does not exist');
@@ -78,7 +78,7 @@ export class UserPersistenceImpl implements UserPersistence {
    */
   async remove(user: User): Promise<number> {
     return await this.db.queryOneField(
-      'DELETE FROM user WHERE id = :id RETURNING id', user
+      `DELETE FROM ${TABLE} WHERE id = :id RETURNING id`, user
     ).catch(err => {
       if (err.name === 'TypeError') throw new Error('user does not exist');
       throw err;
@@ -87,7 +87,7 @@ export class UserPersistenceImpl implements UserPersistence {
 
   async getAll(): Promise<Array<User>> {
     return await this.db.query(
-      'SELECT id, email, name, datetime, updated FROM user'
+      `SELECT ${MEMBERS} FROM ${TABLE}`
     ).then((results: Array<UserData>) => {
       return results.map(data => new UserImpl(data));
     });
