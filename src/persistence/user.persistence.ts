@@ -18,9 +18,14 @@ export interface UserPersistence {
 
   /**
    * create a new user
+   * except email to be not null
+   * except email to be valid
+   * except username to be null or non empty
+   * @param {string} email
+   * @param {string} username
    * @returns {Promise<User>}
    */
-  create(email: string, name: string): Promise<User>;
+  create(email: string, username: string): Promise<User>;
 
   /**
    * update an existing user or reject
